@@ -34,8 +34,9 @@ public class CalibratedGpioPinAnalogInput {
     
     public double getValue(){
         double value = gpioAnalogInputPin.getValue(); //read the ADC register raw value
-        double percent =  ((value * 100) / maxAdcRegisterValue); //figure out where that is in the range
-        double voltage = adcVoltageRange * (percent/100);
-        return cal.applyCal(voltage);
+        //double percent =  ((value * 100) / maxAdcRegisterValue); //figure out where that is in the range
+        //double voltage = adcVoltageRange * (percent/100);
+        double voltage = adcVoltageRange * value / maxAdcRegisterValue; //calculate the voltage equivalent for the raw value
+        return cal.applyCal(voltage); //apply the calibration
     }
 }
