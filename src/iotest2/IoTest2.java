@@ -75,11 +75,12 @@ public class IoTest2 {
     private static final double MIN_SYSTEM_PRESSURE = 42.0;
     private static final double CHARGED_SYSTEM_PRESSURE = 60.0;
     
+
     public static void main(String args[]) throws InterruptedException, I2CFactory.UnsupportedBusNumberException, IOException {
         String classpathStr = System.getProperty("java.class.path");
 		System.out.print("classpathStr: " + classpathStr);
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
-
+        
 //number formats
         final DecimalFormat df = new DecimalFormat("#.##");
         final DecimalFormat pdf = new DecimalFormat("###.#");
@@ -107,14 +108,34 @@ public class IoTest2 {
         CalibratedGpioPinAnalogInput ampWellPumpCurrent = new CalibratedGpioPinAnalogInput(adcWellPumpCurrent,
                                                                                            gpioProvider.getProgrammableGainAmplifier(adcWellPumpCurrent.getPin()).getVoltage(),
                                                                                            ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWellPumpCurrent);
+        /************************************************
+         * Configure the water pressure sensor settings
+         */
+
+        //  Define the error handler if the pressure changes too rapidly
+        MeasurementFailure PressureMeasurementFailure = new MeasurementFailure(){
+            @Override
+            public void run(double valueDelta, long timeDelta){
+                gpio.shutdown();
+                logger.error("Rapid water pressure change detected. System shutdown.");
+                logger.error("  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.");
+                while(true);
+            }
+        };
         
         //  System Water Pressure - A1
         GpioPinAnalogInput adcWaterPressure = gpio.provisionAnalogInputPin(gpioProvider, ADS1115Pin.INPUT_A1, "System Water Pressure Transducer (ADS1115 0x48 A1)");
         gpioProvider.setProgrammableGainAmplifier(ADS1x15GpioProvider.ProgrammableGainAmplifierValue.PGA_6_144V, adcWaterPressure.getPin());
         AdcLinearCalibration calWaterPressure = new AdcLinearCalibration(0.5,4.5,0.0,100.0,-12.5,"PSI");
-        CalibratedGpioPinAnalogInput psiWaterPressure = new CalibratedGpioPinAnalogInput(adcWaterPressure,
+        CalibratedGpioPinAnalogInputSafe psiWaterPressure = new CalibratedGpioPinAnalogInputSafe(adcWaterPressure,
                                                                                            gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
-                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure);
+                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure,PressureMeasurementFailure,0.5);
+        
+        //CalibratedGpioPinAnalogInput psiWaterPressure = new CalibratedGpioPinAnalogInput(adcWaterPressure,
+        //                                                                                   gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
+        //                                                                                   ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure);
+        
+        
         
         long timerPumpStart = -1;
         long timeoutPumpStart = 3*1000; //three seconds
@@ -455,6 +476,15 @@ public class IoTest2 {
         
     }
     
+    public static class MeasurementFailure implements SafeAdcInputMeasurementFailure
+    {
+        @Override
+        public void run(double valueDelta, long timeDelta) {
+            //do error stuff TODO:
+        }
+            
+    };
+    
     /***********************
      * 
      * void setStatusLed(long rate, GpioPinDigitalOutput pin);
@@ -725,8 +755,11 @@ public class IoTest2 {
         }
 //testing 123
         
+    
         
     }
+    
+ 
     
     static class StatusLedValue{
             public static final long STATUS_LED_ON = 0;
