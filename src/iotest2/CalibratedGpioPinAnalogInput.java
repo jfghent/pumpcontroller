@@ -14,6 +14,7 @@ import com.pi4j.io.gpio.GpioPinAnalogInput;
 
 //Can't extend GpioController, so this is a hack of a wrapper to include a crude calibration method.
 public class CalibratedGpioPinAnalogInput {
+    
     public GpioPinAnalogInput gpioAnalogInputPin;
     public AdcLinearCalibration cal;
     public double adcVoltageRange;
@@ -32,11 +33,12 @@ public class CalibratedGpioPinAnalogInput {
         this.cal = cal;    
     }
     
-    public double getValue(){
+    public double getValue() {
         double value = gpioAnalogInputPin.getValue(); //read the ADC register raw value
         //double percent =  ((value * 100) / maxAdcRegisterValue); //figure out where that is in the range
         //double voltage = adcVoltageRange * (percent/100);
         double voltage = adcVoltageRange * value / maxAdcRegisterValue; //calculate the voltage equivalent for the raw value
         return cal.applyCal(voltage); //apply the calibration
     }
+    
 }
