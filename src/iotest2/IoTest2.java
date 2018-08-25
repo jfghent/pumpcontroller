@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 package iotest2;
-
+//comment just for testing commit
 import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CFactory;
 //import com.pi4j.io.i2c.I2CDevice;
