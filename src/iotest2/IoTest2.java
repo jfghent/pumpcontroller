@@ -281,13 +281,14 @@ public class IoTest2 {
                 case PUMP_START_INIT:
                     //PUMP_START_INIT initializes the timeout for PUMP_START.
                     
-                    //pumpRelay.turnOn() will return FALSE if the pump has been
-                    //turned off recently. It will not be true again until the
-                    //pump has had time to rest.
-                    if(!pumpRelay.turnOn())//turn pump relay ON 
+                    /*********
+                     * pumpRelay.turnOn() will return FALSE if the pump has been
+                     * turned off recently. It will not be true again until the
+                     * pump has had time to rest.
+                     */
+                    if(!pumpRelay.turnOn())//turn pump relay ON, returns false if the pump needs a break (per timeout) 
                     {
-                        //PUMP_REST is used to ping the timeout and returns to
-                        //PUMP_START_INIT when the timeout has expired. 
+                        //PUMP_REST is used to poll the timeout and returns back to PUMP_START_INIT when the timeout has expired. 
                         curr_state = PumpStates.State.PUMP_REST;
                     } else
                     {
