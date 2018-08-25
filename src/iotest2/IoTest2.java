@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 package iotest2;
-
+//comment just for testing commit
 import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CFactory;
 //import com.pi4j.io.i2c.I2CDevice;
@@ -81,12 +81,13 @@ public class IoTest2 {
 		System.out.print("classpathStr: " + classpathStr);
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
         
-//number formats
+        //number formats
+
         final DecimalFormat df = new DecimalFormat("#.##");
         final DecimalFormat pdf = new DecimalFormat("###.#");
 
         //System.out.println("************ Begining Execution ************");
-        logger.info("Pump Controller Logger is online. - UID 20180817 20:49");
+        logger.info("Pump Controller Logger is online. - UID 20180825 11:33");
         //logger.info("Logger info level is online.");
         
 
@@ -101,7 +102,7 @@ public class IoTest2 {
         final ADS1115GpioProvider gpioProvider = new ADS1115GpioProvider(I2CBus.BUS_1, ADS1115GpioProvider.ADS1115_ADDRESS_0x48);
         
         // Provision and calibrate gpio analog input pins from ADS1115
-        //  Well Pump Supply Current - A0
+        //  Well Pump Supply Current - Pin A0 on the ADS1115
         GpioPinAnalogInput adcWellPumpCurrent = gpio.provisionAnalogInputPin(gpioProvider, ADS1115Pin.INPUT_A0, "Well Pump Supply Current Sensor (ADS1115 0x48 A0)");
         gpioProvider.setProgrammableGainAmplifier(ADS1x15GpioProvider.ProgrammableGainAmplifierValue.PGA_6_144V, adcWellPumpCurrent.getPin());
         AdcLinearCalibration calWellPumpCurrent = new AdcLinearCalibration(0.0,5.0,0.0,30.0,0.0,"Amps");//TODO: Get actual Cal for this thing
@@ -119,11 +120,12 @@ public class IoTest2 {
                 gpio.shutdown();
                 logger.error("Rapid water pressure change detected. System shutdown.");
                 logger.error("  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.");
-                while(true);
+                while(true); //TODO: More meaningful error handling, including notifying a human
+
             }
         };
         
-        //  System Water Pressure - A1
+        //  System Water Pressure - Pin A1 on the ADS1115
         GpioPinAnalogInput adcWaterPressure = gpio.provisionAnalogInputPin(gpioProvider, ADS1115Pin.INPUT_A1, "System Water Pressure Transducer (ADS1115 0x48 A1)");
         gpioProvider.setProgrammableGainAmplifier(ADS1x15GpioProvider.ProgrammableGainAmplifierValue.PGA_6_144V, adcWaterPressure.getPin());
         AdcLinearCalibration calWaterPressure = new AdcLinearCalibration(0.5,4.5,0.0,100.0,-12.5,"PSI");
@@ -523,80 +525,79 @@ public class IoTest2 {
         }
         
     }
+    
     /***********************
      * 
-     *  void publishState(String name);
+     *  void publishTopic(String topic, String payload);
      * 
-     *  name: name of the state to publish to the home/irrigation/state topic
+     *  topic: mqtt topic 
+     *  payload: mqtt payload 
      * 
      */
-    private static void publishState(String name) {
+    private static void publishTopic(String topic, String payload){
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
         try
         {
-            mqttClient.publish("home/irrigation/state",name.getBytes(),2,true);
+            mqttClient.publish(topic,payload.getBytes(),2,true);
         } catch(Exception e)
         {
-            logger.info("Exception caught in publishState: "+e.toString());
+            logger.info("Exception caught publishing topic: "+ topic);
+            logger.info("Exception: " + e.toString() );
         }
-                
     }
     /***********************
      * 
-     *  void publishCurrent(String name);
+     *  void publishAlert(String payload);
      * 
-     *  name: name of the value to publish to the topic
+     *  payload: mqtt payload to publish to the home/alert topic
      * 
      */
-    private static void publishCurrent(String name) {
-        Logger logger = LoggerFactory.getLogger(IoTest2.class);
-        try
-        {
-            mqttClient.publish("home/irrigation/pump_current",name.getBytes(),0,false);
-        } catch(Exception e)
-        {
-            logger.info("Exception caught in publishCurrent: "+e.toString());
-        }
-                
+    private static void publishAlert(String payload) {
+        publishTopic("home/alert",payload);        
     }
     /***********************
      * 
-     *  void publishPressure(String name);
+     *  void publishState(String payload);
      * 
-     *  name: name of the value to publish to the topic
-     * 
-     */
-    private static void publishPressure(String name) {
-        Logger logger = LoggerFactory.getLogger(IoTest2.class);
-        try
-        {
-            mqttClient.publish("home/irrigation/pressure",name.getBytes(),0,false);
-        } catch(Exception e)
-        {
-            logger.info("Exception caught in publishPresure: "+e.toString());
-        }
-                
-    }
-    /***********************
-     * 
-     *  void publishMode(String name);
-     * 
-     *  name: name of the mode to publish to the home/irrigation/mode topic
+     *  payload: mqtt payload to publish to the home/irrigation/state topic
      * 
      */
-    private static void publishMode(String name) {
-        Logger logger = LoggerFactory.getLogger(IoTest2.class);
-        try
-        {
-            mqttClient.publish("home/irrigation/mode",name.getBytes(),2,true);
-        } catch(Exception e)
-        {
-            logger.info("Exception caught in publishMode: "+e.toString());
-        }
-                
+    private static void publishState(String payload) {
+        publishTopic("home/irrigation/state",payload);      
     }
     
-    static class ModeControl {
+    /***********************
+     * 
+     *  void publishCurrent(String payload);
+     * 
+     *  payload: mqtt payload to publish to the home/irrigation/pump_current topic
+     * 
+     */
+    private static void publishCurrent(String payload) {
+       publishTopic("home/irrigation/pump_current",payload); 
+    }
+    /***********************
+     * 
+     *  void publishPressure(String payload);
+     * 
+     *  payload: mqtt payload to publish to the home/irrigation/pressure topic
+     * 
+     */
+    private static void publishPressure(String payload) {
+        publishTopic("home/irrigation/pressure",payload); 
+    }
+    /***********************
+     * 
+     *  void publishMode(String payload);
+     * 
+     *  payload: mqtt payload to publish to the home/irrigation/mode topic
+     * 
+     */
+    private static void publishMode(String payload) {
+        publishTopic("home/irrigation/mode",payload);             
+    }
+    
+    private static class ModeControl {
         private Modes curr_mode = Modes.NORMAL_OPERATION_MODE;
         private boolean high_flow_timeout_enabled = true;
         private Long high_flow_timeout = 10*60*1000L;//set at 10 minutes to start
