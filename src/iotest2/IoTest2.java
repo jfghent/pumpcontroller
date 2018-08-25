@@ -82,6 +82,7 @@ public class IoTest2 {
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
         
         //number formats
+
         final DecimalFormat df = new DecimalFormat("#.##");
         final DecimalFormat pdf = new DecimalFormat("###.#");
 
@@ -119,8 +120,8 @@ public class IoTest2 {
                 gpio.shutdown();
                 logger.error("Rapid water pressure change detected. System shutdown.");
                 logger.error("  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.");
-                
                 while(true); //TODO: More meaningful error handling, including notifying a human
+
             }
         };
         
