@@ -58,6 +58,8 @@ import javax.activation.*;
  */
 public class IoTest2 {
 
+
+
     
     /**
      * @param args the command line arguments
@@ -81,7 +83,9 @@ public class IoTest2 {
     private static final double MIN_SYSTEM_PRESSURE = 42.0;
     private static final double CHARGED_SYSTEM_PRESSURE = 60.0;
     
-
+    private static String MQTT_BROKER       = "tcp://192.168.1.46:1885";
+    private static String MQTT_CLIENTID     = "pi-e595-pump";
+    
     public static void main(String args[]) throws InterruptedException, I2CFactory.UnsupportedBusNumberException, IOException {
         //String classpathStr = System.getProperty("java.class.path");
 	//System.out.print("classpathStr: " + classpathStr);
@@ -94,7 +98,7 @@ public class IoTest2 {
         final DecimalFormat pdf = new DecimalFormat("###.#");
 
         //System.out.println("************ Begining Execution ************");
-        logger.info("Pump Controller Logger is online. - UID 20180826 13:45");
+        logger.info("Pump Controller Logger is online. - UID 20180826 15:05");
         //logger.info("Logger info level is online.");
         
         
@@ -157,7 +161,7 @@ public class IoTest2 {
         AdcLinearCalibration calWaterPressure = new AdcLinearCalibration(0.5,4.5,0.0,100.0,-12.5,"PSI");
         CalibratedGpioPinAnalogInputSafe psiWaterPressure = new CalibratedGpioPinAnalogInputSafe(adcWaterPressure,
                                                                                            gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
-                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure,PressureMeasurementFailure,5.0);
+                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure,PressureMeasurementFailure,10.0);
         
         //CalibratedGpioPinAnalogInput psiWaterPressure = new CalibratedGpioPinAnalogInput(adcWaterPressure,
         //                                                                                   gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
@@ -196,30 +200,19 @@ public class IoTest2 {
         //zone1.pause();
         statusLed.set(StatusLedValue.STATUS_LED_OFF);
         
-            String topic        = "home/irrigation/log";
-            String content      = "SYSTEM INITIALIZING";
-            int qos             = 2;
-            String broker       = "tcp://192.168.1.46:1885";
-            String clientId     = "pi-e595-pump";
+            //String topic        = "home/irrigation/log";
+            //String content      = "SYSTEM INITIALIZING";
+            //int qos             = 2;
+
             //MemoryPersistence persistence = new MemoryPersistence();
         try
         {
                 mqttCallback mqttRec = new mqttCallback();
 
-                mqttClient = new MqttClient(broker, clientId); //, persistence);
+                mqttClient = new MqttClient(MQTT_BROKER, MQTT_CLIENTID); //, persistence);
                 mqttClient.setCallback(mqttRec);
-                MqttConnectOptions connOpts = new MqttConnectOptions();
-                connOpts.setCleanSession(true);
-                logger.info("Connecting to broker: "+broker);
-                mqttClient.connect(connOpts);
-                logger.info("Connected");
-                logger.info("Subscribing to topic");
                 
-                //mqttClient.subscribe(topic);
-                mqttClient.subscribe("home/irrigation/full_charge_request");
-                mqttClient.subscribe("home/irrigation/mode_request");
-                //mqttClient.subscribe("home/irrigation/state");
-                logger.info("Subscribed to topic");
+
                 //logger.info("Publishing message");
                 //MqttMessage message = new MqttMessage(content.getBytes());
                 //message.setQos(qos);
@@ -233,12 +226,15 @@ public class IoTest2 {
             logger.info("Exception initializing the mqtt client connection: " +
                     e.toString());
         }
-
+        mqttClientConnect();
+        
+        
         while (true){
             
             String Pressure = df.format(psiWaterPressure.getValue());
             String Current = df.format(ampWellPumpCurrent.getValue());
             
+            mqttClientConnect();
             publishPressure(Pressure);
             publishCurrent(Current);
             
@@ -465,7 +461,11 @@ public class IoTest2 {
         }
         
         public boolean resting(){
-            return this.pump_rest_time_ms < System.currentTimeMillis() - this.last_time_turned_off;
+            Logger logger = LoggerFactory.getLogger(IoTest2.class);
+            long ms = System.currentTimeMillis();
+            logger.info(" *** Elapsed Time: " + (ms - this.last_time_turned_off));// - this.pump_rest_time_ms));
+            Boolean what = this.pump_rest_time_ms < (System.currentTimeMillis() - this.last_time_turned_off);
+            return !what;
         }
         
         public PinState getState(){
@@ -548,6 +548,7 @@ public class IoTest2 {
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
         try
         {
+            mqttClientConnect();
             mqttClient.publish(topic,payload.getBytes(),2,true);
         } catch(Exception e)
         {
@@ -668,6 +669,34 @@ public class IoTest2 {
             
     }
     /********************
+     * mqttClientConnect 
+     * 
+     */
+    
+    
+    private static void mqttClientConnect() {
+        Logger logger = LoggerFactory.getLogger(IoTest2.class);
+        
+        if(mqttClient.isConnected()) return;
+        
+        try{
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true);
+            logger.info("Connecting to broker: "+ MQTT_BROKER);
+            mqttClient.connect(connOpts);
+            logger.info("Connected");
+            logger.info("Subscribing to topic");
+
+            //mqttClient.subscribe(topic);
+            mqttClient.subscribe("home/irrigation/full_charge_request");
+            mqttClient.subscribe("home/irrigation/mode_request");
+            //mqttClient.subscribe("home/irrigation/state");
+            logger.info("Subscribed to topic");
+        } catch (Exception e){
+            logger.info("Error connecting to MQTT Client: " + e.toString());
+        }
+    }
+    /********************
      * mqttCallback implements MqttCallback with the methods:
      *    connectionLost
      *      Not implemented
@@ -685,6 +714,7 @@ public class IoTest2 {
         
         @Override
         public void connectionLost(Throwable thrwbl) {
+            mqttClientConnect();
             //TODO: implement reconnect logic - jg 201808180645
             //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
