@@ -28,6 +28,9 @@ import com.pi4j.io.gpio.PinState;
 //import com.pi4j.io.gpio.trigger.GpioTrigger;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Properties;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 //import java.util.Collection;
 //import java.util.List;
@@ -45,6 +48,9 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+import javax.mail.*;
+import javax.mail.internet.*;
+import javax.activation.*;
 
 /**
  *
@@ -77,8 +83,9 @@ public class IoTest2 {
     
 
     public static void main(String args[]) throws InterruptedException, I2CFactory.UnsupportedBusNumberException, IOException {
-        String classpathStr = System.getProperty("java.class.path");
-		System.out.print("classpathStr: " + classpathStr);
+        //String classpathStr = System.getProperty("java.class.path");
+	//System.out.print("classpathStr: " + classpathStr);
+        
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
         
         //number formats
@@ -87,10 +94,16 @@ public class IoTest2 {
         final DecimalFormat pdf = new DecimalFormat("###.#");
 
         //System.out.println("************ Begining Execution ************");
-        logger.info("Pump Controller Logger is online. - UID 20180825 11:33");
+        logger.info("Pump Controller Logger is online. - UID 20180826 12:50");
         //logger.info("Logger info level is online.");
         
-
+        // Create EmailAlerter
+        EmailAlerter emailAlerter = new EmailAlerter("smtp.powerxmail.com",
+                                                     "jonghent1@nxlink.com",
+                                                     "NxlinkMail!#523");
+        emailAlerter.addRecipient("jfghent@gmail.com");
+        emailAlerter.addRecipient("benghent@gmail.com");
+        
         // Create gpio controller
         final GpioController gpio = GpioFactory.getInstance();
         
@@ -118,8 +131,14 @@ public class IoTest2 {
             @Override
             public void run(double valueDelta, long timeDelta){
                 gpio.shutdown();
-                logger.error("Rapid water pressure change detected. System shutdown.");
-                logger.error("  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.");
+                curr_state = PumpStates.State.ERROR;
+                publishState(curr_state.name());
+                String error1 = "Rapid water pressure change detected. System shutdown.";
+                String error2 = "  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.";
+                logger.error(error1);
+                logger.error(error2);
+                
+                emailAlerter.raiseAlert("PUMP CONTROLLER ALERT", "This is an alert from the pump controller generated at " + getCurrentTimeStamp() + ".\r\n" + error1 + "\r\n" + error2);
                 while(true); //TODO: More meaningful error handling, including notifying a human
 
             }
@@ -131,7 +150,7 @@ public class IoTest2 {
         AdcLinearCalibration calWaterPressure = new AdcLinearCalibration(0.5,4.5,0.0,100.0,-12.5,"PSI");
         CalibratedGpioPinAnalogInputSafe psiWaterPressure = new CalibratedGpioPinAnalogInputSafe(adcWaterPressure,
                                                                                            gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
-                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure,PressureMeasurementFailure,0.5);
+                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure,PressureMeasurementFailure,5.0);
         
         //CalibratedGpioPinAnalogInput psiWaterPressure = new CalibratedGpioPinAnalogInput(adcWaterPressure,
         //                                                                                   gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
@@ -373,32 +392,7 @@ public class IoTest2 {
                     break;
             }
             
-            //zone1.tick();
-            
-            /*
-            double pressure_raw = adcWaterPressure.getValue();
-            // percentage
-            double percent =  ((pressure_raw * 100) / ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE);
-            // approximate voltage ( *scaled based on PGA setting )
-            double voltage = gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage() * (percent/100);
-            // display output
-            //System.out.println
-            logger.info(" (" + adcWaterPressure.getPin().getName() +") : VOLTS=" + df.format(voltage) + "  | PERCENT=" + pdf.format(percent) + "% | RAW=" + pressure_raw + "       ");
-            
-            pressure_raw = adcWellPumpCurrent.getValue();
-            // percentage
-            percent =  ((pressure_raw * 100) / ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE);
-            // approximate voltage ( *scaled based on PGA setting )
-            voltage = gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage() * (percent/100);
-            // display output
-            //System.out.println
-            logger.info(" (" + adcWellPumpCurrent.getPin().getName() +") : VOLTS=" + df.format(voltage) + "  | PERCENT=" + pdf.format(percent) + "% | RAW=" + pressure_raw + "       ");
-            
-            
-            //System.out.println
-            logger.info("                      Water Pressure: " + pdf.format(psiWaterPressure.getValue()) + "   Pump Current: " + pdf.format(ampWellPumpCurrent.getValue()));
-            */
-            
+          
             //Only publish our state to the broker if it has changed.
             if(curr_state!=prev_state)
             {
@@ -406,7 +400,7 @@ public class IoTest2 {
             }
             prev_state = curr_state;
             
-            //iteration loop
+            //tick time
             Thread.sleep(1000);
         }
         
@@ -501,6 +495,13 @@ public class IoTest2 {
      * pin:
      *    The GpioPinDigitalOutput being used as the status indicator
      * 
+     * 
+     * NOTE: This code is based on the LED being sourced by the output pin. This
+     * means that if the pin is high then the light is on. If, instead, the LED
+     * is drained by the output pin, meaning when the pin is low the light is
+     * on, the code needs to be changed in three places: the construtor, the
+     * STATUS_LED_OFF condition, and the STATUS_LED_ON condition.
+     * 
      */
     static class statusIndicator {
         
@@ -508,6 +509,7 @@ public class IoTest2 {
         
         statusIndicator(GpioPinDigitalOutput pin){
             this.p = pin;
+            this.p.setShutdownOptions(true, PinState.LOW); //turn indicator LED OFF if a gpio.shutdown is issued()
         }
         
         public void set(long rate){
@@ -760,7 +762,12 @@ public class IoTest2 {
     
         
     }
-    
+    public static String getCurrentTimeStamp() {
+        SimpleDateFormat sdfDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//dd/MM/yyyy
+        Date now = new Date();
+        String strDate = sdfDate.format(now);
+        return strDate;
+    }
  
     
     static class StatusLedValue{
