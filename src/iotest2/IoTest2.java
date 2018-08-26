@@ -97,12 +97,19 @@ public class IoTest2 {
         logger.info("Pump Controller Logger is online. - UID 20180826 12:50");
         //logger.info("Logger info level is online.");
         
+        
+        
         // Create EmailAlerter
+        SimplestFileReader sfr = new SimplestFileReader();
+        String pwd = sfr.get("/home/pi/prod/pwd.txt");
+        
         EmailAlerter emailAlerter = new EmailAlerter("smtp.powerxmail.com",
                                                      "jonghent1@nxlink.com",
-                                                     "NxlinkMail!#523");
+                                                     pwd);
         emailAlerter.addRecipient("jfghent@gmail.com");
         emailAlerter.addRecipient("benghent@gmail.com");
+        
+        emailAlerter.raiseAlert("Testing password file", "It worked");
         
         // Create gpio controller
         final GpioController gpio = GpioFactory.getInstance();
