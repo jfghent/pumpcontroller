@@ -94,7 +94,7 @@ public class IoTest2 {
         final DecimalFormat pdf = new DecimalFormat("###.#");
 
         //System.out.println("************ Begining Execution ************");
-        logger.info("Pump Controller Logger is online. - UID 20180826 12:50");
+        logger.info("Pump Controller Logger is online. - UID 20180826 13:45");
         //logger.info("Logger info level is online.");
         
         
@@ -109,7 +109,7 @@ public class IoTest2 {
         emailAlerter.addRecipient("jfghent@gmail.com");
         emailAlerter.addRecipient("benghent@gmail.com");
         
-        emailAlerter.raiseAlert("Testing password file", "It worked");
+        emailAlerter.raiseAlert("Pump Controller Restart", "The pump controller is reporting a restart at " + getCurrentTimeStamp() + ".");
         
         // Create gpio controller
         final GpioController gpio = GpioFactory.getInstance();
