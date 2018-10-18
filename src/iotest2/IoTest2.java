@@ -31,7 +31,7 @@ import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+////////import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 //import java.util.Collection;
 //import java.util.List;
 //import java.util.Map;
@@ -48,9 +48,11 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+
 import javax.mail.*;
 import javax.mail.internet.*;
 import javax.activation.*;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 
 /**
  *
@@ -792,9 +794,8 @@ public class IoTest2 {
 
         @Override
         public void deliveryComplete(IMqttDeliveryToken imdt) {
-            //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
-//testing 123
         
     
         

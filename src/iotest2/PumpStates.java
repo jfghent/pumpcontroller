@@ -14,6 +14,7 @@ public class PumpStates {
         NONE, INIT, FULLY_CHARGED, PARTIALLY_CHARGED, 
         PUMP_START_INIT, PUMP_START, PUMPING, 
         PUMP_REST,
-        WELL_REST_START, WELL_REST
+        WELL_REST_START, WELL_REST,
+        ERROR
     }
 }

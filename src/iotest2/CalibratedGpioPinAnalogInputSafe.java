@@ -7,6 +7,8 @@ package iotest2;
 
 import com.pi4j.io.gpio.GpioPinAnalogInput;
 import static java.lang.Math.abs;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -23,6 +25,7 @@ public class CalibratedGpioPinAnalogInputSafe extends CalibratedGpioPinAnalogInp
     double lastMeasurement = -1.0;
     boolean firstMeasurementTaken = false;
     
+    Logger logger = LoggerFactory.getLogger(IoTest2.class);
     
     public CalibratedGpioPinAnalogInputSafe(GpioPinAnalogInput ain, double adcVoltageRange, double maxAdcRegisterValue, SafeAdcInputMeasurementFailure failureCallback, double maxRateOfChange) {
         super(ain, adcVoltageRange, maxAdcRegisterValue);
@@ -47,12 +50,18 @@ public class CalibratedGpioPinAnalogInputSafe extends CalibratedGpioPinAnalogInp
         double calibrated = cal.applyCal(voltage);
         long nowTime = System.currentTimeMillis();
 
-        if(!firstMeasurementTaken)
+        if(firstMeasurementTaken)
         {
-             if(abs((calibrated-lastMeasurement)/((nowTime-lastMeasurementTime)*1000))>maxRateOfChange)
-             {
-                   failureCallback.run(calibrated-lastMeasurement,(nowTime-lastMeasurementTime)*1000);
-             }
+            
+            double rateOfChange = abs((calibrated-lastMeasurement)/((nowTime-lastMeasurementTime)/1000));
+            //logger.info("****rateOfChange = " + rateOfChange);
+            
+            if(Double.isFinite(rateOfChange) && rateOfChange>maxRateOfChange)
+            //if(abs((calibrated-lastMeasurement)/((nowTime-lastMeasurementTime)/1000))>maxRateOfChange)
+            {
+                //logger.info(" ++++ SHUTDOWN WOULD OCCUR HERE ++++");
+                failureCallback.run(calibrated-lastMeasurement,(nowTime-lastMeasurementTime)/1000);
+            }
         }
         
         lastMeasurementTime = nowTime;
