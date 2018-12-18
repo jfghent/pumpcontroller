@@ -81,9 +81,9 @@ public class IoTest2 {
     private static PumpStates.State curr_state;
     private static boolean full_charge_state_requested;
     
-    private static final double MAX_SYSTEM_PRESSURE = 62.0;
+    private static final double MAX_SYSTEM_PRESSURE = 58.0; //62.0;
     private static final double MIN_SYSTEM_PRESSURE = 42.0;
-    private static final double CHARGED_SYSTEM_PRESSURE = 60.0;
+    private static final double CHARGED_SYSTEM_PRESSURE = 56.0; //60.0;
     
     private static String MQTT_BROKER       = "tcp://192.168.1.46:1885";
     private static String MQTT_CLIENTID     = "pi-e595-pump";
@@ -152,7 +152,7 @@ public class IoTest2 {
                 logger.error(error2);
                 
                 emailAlerter.raiseAlert("PUMP CONTROLLER ALERT", "This is an alert from the pump controller generated at " + getCurrentTimeStamp() + ".\r\n" + error1 + "\r\n" + error2);
-                while(true); //TODO: More meaningful error handling, including notifying a human
+                //while(true); //TODO: More meaningful error handling, including notifying a human
 
             }
         };
@@ -550,8 +550,9 @@ public class IoTest2 {
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
         try
         {
-            mqttClientConnect();
-            mqttClient.publish(topic,payload.getBytes(),2,true);
+            //mqttClientConnect();
+            //mqttClient.publish(topic,payload.getBytes(),2,true);
+            mqttClient.publish(topic,payload.getBytes(),0,false);
         } catch(Exception e)
         {
             logger.info("Exception caught publishing topic: "+ topic);
@@ -716,7 +717,7 @@ public class IoTest2 {
         
         @Override
         public void connectionLost(Throwable thrwbl) {
-            mqttClientConnect();
+            //mqttClientConnect();
             //TODO: implement reconnect logic - jg 201808180645
             //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
