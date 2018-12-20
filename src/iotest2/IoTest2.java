@@ -143,15 +143,15 @@ public class IoTest2 {
         MeasurementFailure PressureMeasurementFailure = new MeasurementFailure(){
             @Override
             public void run(double valueDelta, long timeDelta){
-                gpio.shutdown();
-                curr_state = PumpStates.State.ERROR;
-                publishState(curr_state.name());
-                String error1 = "Rapid water pressure change detected. System shutdown.";
+                //gpio.shutdown();
+                //curr_state = PumpStates.State.ERROR;
+                //publishState(curr_state.name());
+                String error1 = "Rapid water pressure change detected.";// System shutdown.";
                 String error2 = "  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.";
                 logger.error(error1);
                 logger.error(error2);
                 
-                emailAlerter.raiseAlert("PUMP CONTROLLER ALERT", "This is an alert from the pump controller generated at " + getCurrentTimeStamp() + ".\r\n" + error1 + "\r\n" + error2);
+                //emailAlerter.raiseAlert("PUMP CONTROLLER ALERT", "This is an alert from the pump controller generated at " + getCurrentTimeStamp() + ".\r\n" + error1 + "\r\n" + error2);
                 //while(true); //TODO: More meaningful error handling, including notifying a human
 
             }
@@ -228,7 +228,7 @@ public class IoTest2 {
             logger.info("Exception initializing the mqtt client connection: " +
                     e.toString());
         }
-        mqttClientConnect();
+        //mqttClientConnect();
         
         
         while (true){
@@ -236,9 +236,9 @@ public class IoTest2 {
             String Pressure = df.format(psiWaterPressure.getValue());
             String Current = df.format(ampWellPumpCurrent.getValue());
             
-            mqttClientConnect();
-            publishPressure(Pressure);
-            publishCurrent(Current);
+            //mqttClientConnect();
+            //publishPressure(Pressure);
+            //publishCurrent(Current);
             
             logger.info("Curr State: " + curr_state.toString() + " - " + operMode.getModeString());
             logger.info("     Water Pressure : " + Pressure);
@@ -401,7 +401,7 @@ public class IoTest2 {
             //Only publish our state to the broker if it has changed.
             if(curr_state!=prev_state)
             {
-                publishState(curr_state.name());
+                //publishState(curr_state.name());
             }
             prev_state = curr_state;
             
