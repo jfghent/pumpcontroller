@@ -79,7 +79,7 @@ public class IoTest2 {
     private static MqttClient mqttClient;
     private static ModeControl operMode;
     private static PumpStates.State curr_state;
-    private static boolean full_charge_state_requested;
+    private static boolean full_charge_state_requested = false;
     
     private static final double MAX_SYSTEM_PRESSURE = 58.0; //62.0;
     private static final double MIN_SYSTEM_PRESSURE = 42.0;
@@ -142,16 +142,18 @@ public class IoTest2 {
         //  Define the error handler if the pressure changes too rapidly
         MeasurementFailure PressureMeasurementFailure = new MeasurementFailure(){
             @Override
-            public void run(double valueDelta, long timeDelta){
-                //gpio.shutdown();
-                //curr_state = PumpStates.State.ERROR;
+            public void run(double psi, long time){
+                gpio.shutdown();
+                curr_state = PumpStates.State.ERROR;
                 //publishState(curr_state.name());
-                String error1 = "Rapid water pressure change detected.";// System shutdown.";
-                String error2 = "  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.";
+                //String error1 = "Rapid water pressure change detected.";// System shutdown.";
+                //String error2 = "  Change was measured as " + df.format(valueDelta) + "psi in " + df.format(timeDelta) + "seconds.";
+                String error1 = "OVER PRESSURE CONDITION DETECTED AT " + df.format(time) + ": " + df.format(psi);
+                String error2 = "";
                 logger.error(error1);
                 logger.error(error2);
                 
-                //emailAlerter.raiseAlert("PUMP CONTROLLER ALERT", "This is an alert from the pump controller generated at " + getCurrentTimeStamp() + ".\r\n" + error1 + "\r\n" + error2);
+                emailAlerter.raiseAlert("PUMP CONTROLLER ALERT", "This is an alert from the pump controller generated at " + getCurrentTimeStamp() + ".\r\n" + error1 + "\r\n" + error2);
                 //while(true); //TODO: More meaningful error handling, including notifying a human
 
             }
@@ -163,7 +165,7 @@ public class IoTest2 {
         AdcLinearCalibration calWaterPressure = new AdcLinearCalibration(0.5,4.5,0.0,100.0,-12.5,"PSI");
         CalibratedGpioPinAnalogInputSafe psiWaterPressure = new CalibratedGpioPinAnalogInputSafe(adcWaterPressure,
                                                                                            gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
-                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure,PressureMeasurementFailure,10.0);
+                                                                                           ADS1115GpioProvider.ADS1115_RANGE_MAX_VALUE,calWaterPressure,PressureMeasurementFailure,88.0);
         
         //CalibratedGpioPinAnalogInput psiWaterPressure = new CalibratedGpioPinAnalogInput(adcWaterPressure,
         //                                                                                   gpioProvider.getProgrammableGainAmplifier(adcWaterPressure.getPin()).getVoltage(),
@@ -228,7 +230,9 @@ public class IoTest2 {
             logger.info("Exception initializing the mqtt client connection: " +
                     e.toString());
         }
-        //mqttClientConnect();
+        mqttClientConnect();
+        publishState(curr_state.toString());   
+        publishMode(operMode.toString());
         
         
         while (true){
@@ -236,17 +240,15 @@ public class IoTest2 {
             String Pressure = df.format(psiWaterPressure.getValue());
             String Current = df.format(ampWellPumpCurrent.getValue());
             
-            //mqttClientConnect();
-            //publishPressure(Pressure);
-            //publishCurrent(Current);
+            mqttClientConnect();
+            publishPressure(Pressure);
+            publishCurrent(Current);
             
             logger.info("Curr State: " + curr_state.toString() + " - " + operMode.getModeString());
             logger.info("     Water Pressure : " + Pressure);
             logger.info("     Pump Current   : " + Current);
             logger.info("     Pump Switch    : " + pumpRelay.getOnOff());
-            //logger.info("     Zone Running   : " + zone1.isRunning());
-            //logger.info("     Zone Paused    : " + zone1.isPaused());
-            //logger.info("     Zone Elapsed   : " + zone1.getElapsedTime());
+
             
             switch (curr_state) {
          
@@ -393,6 +395,10 @@ public class IoTest2 {
                     if(!pumpRelay.resting())
                         curr_state = PumpStates.State.PUMP_START_INIT;
                     break; 
+                case ERROR:
+                    //TODO: What to do?
+                    //statusLed.set(StatusLedValue.STATUS_LED_OFF);
+                    break;
                 default: 
                     break;
             }
@@ -401,12 +407,12 @@ public class IoTest2 {
             //Only publish our state to the broker if it has changed.
             if(curr_state!=prev_state)
             {
-                //publishState(curr_state.name());
+                publishState(curr_state.name());
             }
             prev_state = curr_state;
             
             //tick time
-            Thread.sleep(1000);
+            Thread.sleep(1500);
         }
         
     }
@@ -692,6 +698,7 @@ public class IoTest2 {
 
             //mqttClient.subscribe(topic);
             mqttClient.subscribe("home/irrigation/full_charge_request");
+            mqttClient.subscribe("home/irrigation/full_charge_request_interrupt");
             mqttClient.subscribe("home/irrigation/mode_request");
             //mqttClient.subscribe("home/irrigation/state");
             logger.info("Subscribed to topic");
@@ -717,7 +724,7 @@ public class IoTest2 {
         
         @Override
         public void connectionLost(Throwable thrwbl) {
-            //mqttClientConnect();
+            mqttClientConnect();
             //TODO: implement reconnect logic - jg 201808180645
             //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
@@ -741,6 +748,9 @@ public class IoTest2 {
                     break;
                 case("home/irrigation/full_charge_request"):
                     full_charge_state_requested = true;
+                    break;
+                case("home/irrigation/full_charge_request_interrupt"):
+                    full_charge_state_requested = false;
                     break;
                 /**************
                  * home/irrigation/mode_request
@@ -795,7 +805,7 @@ public class IoTest2 {
 
         @Override
         public void deliveryComplete(IMqttDeliveryToken imdt) {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
         
     
