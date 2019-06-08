@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 public class CalibratedGpioPinAnalogInputSafe extends CalibratedGpioPinAnalogInput {
     
     SafeAdcInputMeasurementFailure failureCallback; //what to do if the rate of change exceeds the maximum
-    double maxRateOfChange; //measured in units per second
+    double maxPressureThresholdPsi; //measured in PSI
     
     long lastMeasurementTime = -1;
     double lastMeasurement = -1.0;
@@ -27,16 +27,16 @@ public class CalibratedGpioPinAnalogInputSafe extends CalibratedGpioPinAnalogInp
     
     Logger logger = LoggerFactory.getLogger(IoTest2.class);
     
-    public CalibratedGpioPinAnalogInputSafe(GpioPinAnalogInput ain, double adcVoltageRange, double maxAdcRegisterValue, SafeAdcInputMeasurementFailure failureCallback, double maxRateOfChange) {
+    public CalibratedGpioPinAnalogInputSafe(GpioPinAnalogInput ain, double adcVoltageRange, double maxAdcRegisterValue, SafeAdcInputMeasurementFailure failureCallback, double maxPressureThresholdPsi) { //maxRateOfChange) {
         super(ain, adcVoltageRange, maxAdcRegisterValue);
         this.failureCallback = failureCallback;
-        this.maxRateOfChange = maxRateOfChange;
+        this.maxPressureThresholdPsi = maxPressureThresholdPsi;
     }
 
-    public CalibratedGpioPinAnalogInputSafe(GpioPinAnalogInput ain, double adcVoltageRange, double maxAdcRegisterValue, AdcLinearCalibration cal, SafeAdcInputMeasurementFailure failureCallback, double maxRateOfChange) {
+    public CalibratedGpioPinAnalogInputSafe(GpioPinAnalogInput ain, double adcVoltageRange, double maxAdcRegisterValue, AdcLinearCalibration cal, SafeAdcInputMeasurementFailure failureCallback, double maxPressureThresholdPsi) {
         super(ain, adcVoltageRange, maxAdcRegisterValue, cal);
         this.failureCallback = failureCallback;
-        this.maxRateOfChange = maxRateOfChange;
+        this.maxPressureThresholdPsi = maxPressureThresholdPsi;
     }
     
     @Override
@@ -50,23 +50,26 @@ public class CalibratedGpioPinAnalogInputSafe extends CalibratedGpioPinAnalogInp
         double calibrated = cal.applyCal(voltage);
         long nowTime = System.currentTimeMillis();
 
-        if(firstMeasurementTaken)
-        {
+        //if(firstMeasurementTaken)
+        //{
             
-            double rateOfChange = abs((calibrated-lastMeasurement)/((nowTime-lastMeasurementTime)/1000));
+            //double rateOfChange = abs((calibrated-lastMeasurement)/((nowTime-lastMeasurementTime)/1000));
             //logger.info("****rateOfChange = " + rateOfChange);
             
-            if(Double.isFinite(rateOfChange) && rateOfChange>maxRateOfChange)
+            //if(Double.isFinite(rateOfChange) && rateOfChange>maxRateOfChange)
             //if(abs((calibrated-lastMeasurement)/((nowTime-lastMeasurementTime)/1000))>maxRateOfChange)
-            {
+            //{
                 //logger.info(" ++++ SHUTDOWN WOULD OCCUR HERE ++++");
-                failureCallback.run(calibrated-lastMeasurement,(nowTime-lastMeasurementTime)/1000);
-            }
-        }
+            //    failureCallback.run(calibrated-lastMeasurement,(nowTime-lastMeasurementTime)/1000);
+            //}
+            
+            if(calibrated>maxPressureThresholdPsi)
+                failureCallback.run(calibrated,nowTime/1000);
+        //}
         
-        lastMeasurementTime = nowTime;
-        lastMeasurement = calibrated;
-        firstMeasurementTaken = true;
+        //lastMeasurementTime = nowTime;
+        //lastMeasurement = calibrated;
+        this.firstMeasurementTaken = true;
         
         return calibrated; //apply the calibration
         
