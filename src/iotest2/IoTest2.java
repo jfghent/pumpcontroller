@@ -182,7 +182,7 @@ public class IoTest2 {
         //pumpRelay.setState(PinState.HIGH);
         //pumpRelay.setShutdownOptions(true, PinState.HIGH);
         
-        Pump pumpRelay = new Pump(gpio,RaspiPin.GPIO_29,timeoutPumpRest);
+        Pump pumpRelay = new Pump(gpio,RaspiPin.GPIO_29,timeoutPumpRest, PinState.LOW);
         
         operMode = new ModeControl();
         operMode.setEnableHighFlowTimeout(true);
@@ -429,20 +429,32 @@ public class IoTest2 {
      */
     
     private static class Pump {
-        private GpioController gpio;
-        private GpioPinDigitalOutput relay_pin;
+        private final GpioController gpio;
+        private final GpioPinDigitalOutput relay_pin;
         private Long last_time_turned_off;
         private Long pump_rest_time_ms = 30*1000L; //default to a safe value of 30 seconds
         private boolean pump_on;
+        private final PinState relay_off_pin_state;
+        private PinState relay_on_pin_state;
         
-        Pump(GpioController gpio,Pin pin,long pump_rest_time_ms){
-            this.gpio = gpio;
+        Pump(GpioController gpioCon,Pin pin,long pump_rest_time_ms,PinState relayOffPinState){
+            this.gpio = gpioCon;
             this.relay_pin =  gpio.provisionDigitalOutputPin(pin); //RaspiPin.GPIO_29);
-            this.relay_pin.setShutdownOptions(true, PinState.HIGH);
+            this.relay_off_pin_state = relayOffPinState;
+            this.relay_pin.setShutdownOptions(true, relayOffPinState);
             this.last_time_turned_off = System.currentTimeMillis();
             this.pump_rest_time_ms = pump_rest_time_ms;
             this.pump_on = false;
             turnOff();
+            
+            if(relay_off_pin_state == PinState.LOW)
+            {
+                relay_on_pin_state = PinState.HIGH;
+            }
+            else if (relay_off_pin_state == PinState.HIGH)
+            {
+                relay_on_pin_state = PinState.LOW;
+            }
         }
         
         //Do not turn on the pump if it hasn't had enough time to cool down, as 
@@ -450,7 +462,7 @@ public class IoTest2 {
         public boolean turnOn(){
             if(this.pump_rest_time_ms < System.currentTimeMillis() - this.last_time_turned_off)
             {
-                this.relay_pin.setState(PinState.LOW);
+                this.relay_pin.setState(relay_on_pin_state);
                 this.pump_on = true;
                 return true;
             } else
@@ -459,8 +471,8 @@ public class IoTest2 {
             }
         }
         
-        public void turnOff(){
-            this.relay_pin.setState(PinState.HIGH);
+        public final void turnOff(){
+            this.relay_pin.setState(relay_off_pin_state);
             if(pump_on)
             {
                 this.last_time_turned_off = System.currentTimeMillis();
@@ -481,8 +493,8 @@ public class IoTest2 {
         }
         
         public String getOnOff(){
-            if(this.relay_pin.getState()==PinState.HIGH) return "Off";
-            if(this.relay_pin.getState()==PinState.LOW) return "On";
+            if(this.relay_pin.getState()==relay_off_pin_state) return "Off";
+            if(this.relay_pin.getState()==relay_on_pin_state) return "On";
             return "Unexpected value in getOnOff: " + this.relay_pin.getState().toString();
         }
         
@@ -553,12 +565,16 @@ public class IoTest2 {
      * 
      */
     private static void publishTopic(String topic, String payload){
+        publishTopic(topic,payload,0,false);
+    }
+    
+    private static void publishTopic(String topic, String payload,int qos, boolean persist){
         Logger logger = LoggerFactory.getLogger(IoTest2.class);
         try
         {
             //mqttClientConnect();
             //mqttClient.publish(topic,payload.getBytes(),2,true);
-            mqttClient.publish(topic,payload.getBytes(),0,false);
+            mqttClient.publish(topic,payload.getBytes(),qos,persist);
         } catch(Exception e)
         {
             logger.info("Exception caught publishing topic: "+ topic);
@@ -583,7 +599,7 @@ public class IoTest2 {
      * 
      */
     private static void publishState(String payload) {
-        publishTopic("home/irrigation/state",payload);      
+        publishTopic("home/irrigation/state",payload,2,true);      
     }
     
     /***********************
